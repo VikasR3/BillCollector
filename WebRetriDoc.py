@@ -2,6 +2,7 @@
 
 import os
 import sys
+from dotenv import load_dotenv
 import re
 from nslookup import Nslookup
 import time
@@ -10,7 +11,8 @@ import logging.handlers
 import requests
 import json
 from flatten_json import flatten
- 
+
+
 def log_setup(logfile):
     script = os.path.basename(__file__)
     log_handler = logging.handlers.WatchedFileHandler(logfile)
@@ -106,65 +108,99 @@ def get_json_property_value(content, prop):
     result=data.get(prop)
     return result
 
+class defs:
+    def __init__(self, vault, api, creds, fname="wrd_default.ini", debug=True):
+        self.vault = vault
+        self.api = api
+        self.creds = creds
+        self.fname = fname
+        self.debug = debug
 
-sys.stdout = sys.__stdout__
+def WebRetriDoc(self):
 
-logfile = "./WebRetriDoc.log"
-vault_domain = "vault.solg.duckdns.org"
-bw_api_url = "http://solg.fritz.box:8087"
-credentials = {"password": "+49307874573"}
+    # Check if <domain> is resolvable and directs to a local IP address
+    ip = is_domain_local_ip(self.vault) 
+    if not ip: sys.exit(1)
+    else: print(f"{self.vault} is resolvable and directs to local IP {ip}")
 
-#print = logging.info   # comment out if looging into file is required instead of stdout
+    # Check if Bitarden API at <bw_api_url> responds with success=true
+    ret, status = bitwarden_api_check_status(self.api)
+    if not ret: sys.exit(1) 
+    else: print(status)
 
-log_setup(logfile)
+    # Sync database
+    ret = post_json(f"{self.api}/sync", self.creds)
+    if not ret: sys.exit(1) 
+    if not is_json_property_value(ret, "success", True): sys.exit(1)
+    else: print("Vault is sync'd successfully.")
 
-## --- Main ---
+    # Unlock database
+    ret = post_json(f"{self.api}/unlock", self.creds)
+    if not ret: sys.exit(1) 
+    if not is_json_property_value(ret, "success", True): sys.exit(1)
+    else: print("Vault is unlocked successfully.")
 
-# Check if <domain> is resolvable and directs to a local IP address
-ip = is_domain_local_ip(vault_domain) 
-if not ip: sys.exit(1)
-else: print(f"{vault_domain} is resolvable and directs to local IP {ip}")
+    #################
+    # Loop over Web Services
+    file = open(self.fname, "r")
 
-# Check if Bitarden API at <bw_api_url> responds with success=true
-ret, status = bitwarden_api_check_status(bw_api_url)
-if not ret: sys.exit(1) 
-else: print(status)
+    while True:
+        servicename = file.readline()
+        if not servicename: break
+        servicename = servicename.strip()
+        print(f"Service {servicename} started.")
 
-# Sync database
-ret = post_json(f"{bw_api_url}/sync", credentials)
-if not ret: sys.exit(1) 
-if not is_json_property_value(ret, "success", True): sys.exit(1)
-else: print("Vault is sync'd successfully.")
+        # Retrieve credentials
+        item = get_json(f"{self.api}/object/item/{servicename}")
+        username = get_json_property_value(item, "data_login_username")
+        passsword = get_json_property_value(item, "data_login_password")
+        uri = get_json_property_value(item, "data_login_uris_0_uri")
+        item = get_json(f"{self.api}/object/totp/{servicename}")
+        if item is not None: totp = get_json_property_value(item, "data_data") 
+        else: totp = None 
 
-# Unlock database
-ret = post_json(f"{bw_api_url}/unlock", credentials)
-if not ret: sys.exit(1) 
-if not is_json_property_value(ret, "success", True): sys.exit(1)
-else: print("Vault is unlocked successfully.")
+        # Download Documents
+        from WrdRetrieveFromService import RetrieveFromService
+        RetrieveFromService(servicename, uri, username, passsword, totp, self.debug)
+    #
+    #################
 
-#################
-# Loop over Web Services (to be done)
-servicename = "KabelDeutschland"
-
-# Retrieve credentials
-ret = get_json(f"{bw_api_url}/object/item/{servicename}")
-username = get_json_property_value(ret, "data_login_username")
-passsword = get_json_property_value(ret, "data_login_password")
-uri = get_json_property_value(ret, "data_login_uris_0_uri")
-
-# Download Documents
-from mytest import Main
-Main(uri, username, passsword)
-#
-#################
-
-# Lock database
-ret = post_json(f"{bw_api_url}/lock", credentials)
-if not ret: sys.exit(1) 
-if not is_json_property_value(ret, "success", True): sys.exit(1)
-else: print("Vault is locked successfully.")
+    # Lock database
+    ret = post_json(f"{self.api}/lock", self.creds)
+    if not ret: sys.exit(1) 
+    if not is_json_property_value(ret, "success", True): sys.exit(1)
+    else: print("Vault is locked successfully.")
 
 
+if __name__ == "__main__":
+    sys.stdout = sys.__stdout__
 
+    logfile = "./WebRetriDoc.log"
+    
+    load_dotenv()
+    wrd = defs(
+        os.getenv("VAULT_HOST"), 
+        os.getenv("BW_API_URL"), 
+        json.loads(os.getenv("CREDENTIALS")))
+
+    #print = logging.info   # comment out if looging into file is required instead of stdout
+
+    log_setup(logfile)
+
+    if sys.gettrace():
+        print("Im Debugger ausgeführt")
+    else:
+        # Von der Konsole ausgeführt
+        if len(sys.argv) != 3:
+            print("Bitte genau zwei Parameter angeben.")
+            sys.exit(1)
+        wrd.fname = sys.argv[1]
+        wrd.debug = sys.argv[2]
+
+    WebRetriDoc(wrd)
+
+else:
+    # Als Modul importiert
+    print(f"Das Skript {__name__} wurde als Modul importiert.")
 
 

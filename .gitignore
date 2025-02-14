@@ -1,0 +1,8 @@
+.env
+.venv
+chrome*
+.pytest*
+__pycache__
+*.bak
+*.log
+*.html
