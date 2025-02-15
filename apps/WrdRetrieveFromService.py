@@ -63,11 +63,14 @@ def InitBrowser(test):
     # browser and webdriver configuration
     homedir = os.path.expanduser(".")
     chrome_options = Options()
-    if test == False: chrome_options.add_argument("--headless") # Ensure GUI is off
+    chrome_options.add_argument("--headless") # Ensure GUI is off
     chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable_dev-shm-usage")
     chrome_options.binary_location = f"{homedir}/chrome-linux64/chrome"
-    prefs = {'download.default_directory' : '/tmp/download', "download.prompt_for_download": False, "download.directory_upgrade": True, "plugins.always_open_pdf_externally": True}
+    prefs = {'download.default_directory' : './download', "download.prompt_for_download": False, "download.directory_upgrade": True, "plugins.always_open_pdf_externally": True}
     chrome_options.add_experimental_option('prefs', prefs)
+    
     webdriver_service = Service(f"{homedir}/chromedriver-linux64/chromedriver")
     driver = webdriver.Chrome(service=webdriver_service, options=chrome_options)
     return driver
