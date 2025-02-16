@@ -2,6 +2,13 @@
 
 Collects my bills from different web portals.
 
+## Prerequisites
+- Vaultwarden (docker image: vaultwarden/server:latest)
+- Bitwarden API (https://api.github.com/repos/bitwarden/clients/releases, https://github.com/bitwarden/clients/releases/download/cli-v{$VER}/bw-linux-{$VER}.zip)
+- Vaultwarden needs local https access:
+  - Duckdns -> redirect to local-IP-address
+  - nginxproxymanager with Let's Encrypt
+
 ## Notes
 ### get_credentials.sh - prototyping
 
