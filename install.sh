@@ -18,6 +18,10 @@ enable_bash_cmd wget
 enable_bash_cmd curl
 enable_bash_cmd unzip
 
+# prepare apps
+if test ! -d apps; then mkdir apps; else echo "* apps folder already exists"; fi
+cd apps
+
 ## Run Selenium and Chrome on WSL2 using Python and Selenium webdriver  https://cloudbytes.dev/snippets/run-selenium-and-chrome-on-wsl2
 # install Chrome for Testing 
 meta_data=$(curl -s 'https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json')

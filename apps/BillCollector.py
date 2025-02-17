@@ -1,3 +1,4 @@
+# BillCollector
 # Retrieval of Documents from Web Services
 
 import os
@@ -109,7 +110,7 @@ def get_json_property_value(content, prop):
     return result
 
 class defs:
-    def __init__(self, vault, api, creds, fname="wrd_default.ini", debug=True):
+    def __init__(self, vault, api, creds, fname="bc_default.ini", debug=True):
         self.vault = vault
         self.api = api
         self.creds = creds
@@ -160,7 +161,7 @@ def WebRetriDoc(self):
         else: totp = None 
 
         # Download Documents
-        from WrdRetrieveFromService import RetrieveFromService
+        from BillCollectorServices import RetrieveFromService
         RetrieveFromService(servicename, uri, username, passsword, totp, self.debug)
     #
     #################
@@ -171,36 +172,41 @@ def WebRetriDoc(self):
     if not is_json_property_value(ret, "success", True): sys.exit(1)
     else: print("Vault is locked successfully.")
 
-
 if __name__ == "__main__":
     sys.stdout = sys.__stdout__
 
-    logfile = "./WebRetriDoc.log"
-    
     load_dotenv()
-    wrd = defs(
+    bc = defs(
         os.getenv("VAULT_HOST"), 
         os.getenv("BW_API_URL"), 
         json.loads(os.getenv("CREDENTIALS")))
 
-    #print = logging.info   # comment out if looging into file is required instead of stdout
-
-    log_setup(logfile)
-
     if sys.gettrace():
-        print("Im Debugger ausgeführt")
+        print("Executed in debugger.")
     else:
         # Von der Konsole ausgeführt
-        if len(sys.argv) != 3:
-            print("Bitte genau zwei Parameter angeben.")
+        if len(sys.argv) < 2 or len(sys.argv) > 3:
+            print(" Usage: python3 BillCollector.py <ini-filename> [\"debug\"]")
             sys.exit(1)
-        wrd.fname = sys.argv[1]
-        wrd.debug = sys.argv[2]
+        if os.path.isfile(sys.argv[1]) == False:
+            print(f"File {sys.argv[1]} not found.")
+            sys.exit(1)
+        if len(sys.argv) == 2:
+            bc.debug = False
+        else:
+            bc.debug = True
+            print("Debugging enabled.")
+        bc.fname = sys.argv[1]
 
-    WebRetriDoc(wrd)
+    logfile = "./BillCollector.log"
+    if bc.debug == True: 
+        print = logging.info   # comment out if looging into file is required instead of stdout
+    log_setup(logfile)
+
+    WebRetriDoc(bc)
 
 else:
     # Als Modul importiert
-    print(f"Das Skript {__name__} wurde als Modul importiert.")
+    print(f"{__name__} imported as module.")
 
 

@@ -7,4 +7,4 @@
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 docker run -v $SCRIPT_DIR/apps/Downloads:/apps/Downloads --rm billcollector:latest \
-       python3 ./WebRetriDoc.py $1 $2
+       python3 ./BillCollector.py $1 $2
