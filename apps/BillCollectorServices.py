@@ -91,7 +91,8 @@ class service_vars:
 def RetrieveFromService(service, url, user, pwd, otp, test):
     
     bcs = service_vars(user, pwd, otp, test, f"{os.path.dirname(os.path.realpath(__file__))}/Downloads")
-
+    if not os.path.exists(bcs.dld):
+        os.makedirs(bcs.dld)
     bcs.drv = InitBrowser(bcs)
     bcs.drv.get(url)
     

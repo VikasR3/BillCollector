@@ -44,9 +44,9 @@ RUN apt-get update
 RUN apt-get install -y python3 && apt-get install -y python3-pip
 
 # Install pip requirements and app
-COPY requirements.txt requirements.txt
+ARG VER=unknown
+COPY apps/.  .
 RUN pip3 install -r requirements.txt --break-system-packages
-COPY apps/*  .
 
 # Creates a non-root user with an explicit UID and adds permission to access the /app folder
 # For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
