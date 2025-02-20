@@ -14,6 +14,15 @@ import json
 from flatten_json import flatten
 
 
+# Function to extract strings before and within brackets
+def extract_strings(line):
+    match = re.search(r'([^\[]*)\[(.*?)\]', line)
+    if match:
+        before_bracket = match.group(1).strip()
+        within_bracket = match.group(2).split(', ')
+        return before_bracket, within_bracket
+    return line.strip(), []
+
 def log_setup(logfile):
     script = os.path.basename(__file__)
     log_handler = logging.handlers.WatchedFileHandler(logfile)
@@ -110,7 +119,7 @@ def get_json_property_value(content, prop):
     return result
 
 class defs:
-    def __init__(self, vault, api, creds, fname="bc_default.ini", debug=True):
+    def __init__(self, vault, api, creds, fname="bc_default.ini", debug=False):
         self.vault = vault
         self.api = api
         self.creds = creds
@@ -146,23 +155,27 @@ def WebRetriDoc(self):
     file = open(self.fname, "r")
 
     while True:
-        servicename = file.readline()
+        servicename = file.readline().strip()
         if not servicename: break
-        servicename = servicename.strip()
-        print(f"Service {servicename} started.")
+        # handle service variant with list of users in array
+        servicename, users = extract_strings(servicename)
+        if len(users) == 0: users.insert(0, "")
+        for user in users:
+            service_user = f"{servicename} {user}".strip()
+            print(f"Service {service_user} started.")
 
-        # Retrieve credentials
-        item = get_json(f"{self.api}/object/item/{servicename}")
-        username = get_json_property_value(item, "data_login_username")
-        passsword = get_json_property_value(item, "data_login_password")
-        uri = get_json_property_value(item, "data_login_uris_0_uri")
-        item = get_json(f"{self.api}/object/totp/{servicename}")
-        if item is not None: totp = get_json_property_value(item, "data_data") 
-        else: totp = None 
+            # Retrieve credentials
+            item = get_json(f"{self.api}/object/item/{service_user}")
+            username = get_json_property_value(item, "data_login_username")
+            passsword = get_json_property_value(item, "data_login_password")
+            uri = get_json_property_value(item, "data_login_uris_0_uri")
+            item = get_json(f"{self.api}/object/totp/{service_user}")
+            if item is not None: totp = get_json_property_value(item, "data_data") 
+            else: totp = None 
 
-        # Download Documents
-        from BillCollectorServices import RetrieveFromService
-        RetrieveFromService(servicename, uri, username, passsword, totp, self.debug)
+            # Download Documents
+            from BillCollectorServices import RetrieveFromService
+            RetrieveFromService(servicename, uri, username, passsword, totp, self.debug)
     #
     #################
 
@@ -199,9 +212,10 @@ if __name__ == "__main__":
         bc.fname = sys.argv[1]
 
     logfile = "./BillCollector.log"
-    if bc.debug == True: 
-        print = logging.info   # comment out if looging into file is required instead of stdout
     log_setup(logfile)
+    if bc.debug == False: 
+        print = logging.debug   # comment out if looging into file is required instead of stdout
+    
 
     WebRetriDoc(bc)
 
