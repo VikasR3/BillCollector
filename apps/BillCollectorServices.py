@@ -115,6 +115,32 @@ def RetrieveFromService(service, url, user, pwd, otp, test):
 #
 # Services
 #
+def bc_retrieve__nuernberger(bcs):
+    #bcs.drv.find_element(By.ID, "consent_prompt_submit").click()
+    TrySendKeys(bcs,By.ID, "form_initialLogin_step2:j_idt156:username",bcs.usr)
+    TrySendKeys(bcs,By.ID, "form_initialLogin_step2:j_idt171:pwd",bcs.pwd)
+    TryClick(bcs,By.ID, "form_initialLogin_step2:loginSubmit")
+    TryClick(bcs,By.CSS_SELECTOR, ".hidden-xs > .fake-btn")
+    TryClick(bcs,By.XPATH, "(//tr[@data-cy='brief'])[2]")
+    fname = TryDownload(bcs, By.XPATH, "(//div[@data-cy='download'])[2]")
+    TryClick(bcs,By.XPATH, "(//tr[@data-cy='brief'])[1]")
+    fname = TryDownload(bcs, By.XPATH, "(//div[@data-cy='download'])[1]")
+    return fname
+
+def bc_retrieve__lichtblick(bcs):
+    shadow_host = WebDriverWait(bcs.drv, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#usercentrics-cmp-ui")))
+    shadow_root = bcs.drv.execute_script('return arguments[0].shadowRoot', shadow_host)
+    WebDriverWait(shadow_root, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#uc-main-dialog")))
+    cookie_button = shadow_root.find_element(By.CSS_SELECTOR, "#accept")
+    bcs.drv.execute_script("arguments[0].click();", cookie_button)
+    TryClick(bcs,By.XPATH, "//a[@href='/konto/']")
+    TrySendKeys(bcs,By.ID, "email", bcs.usr)
+    TrySendKeys(bcs,By.ID, "password", bcs.pwd)
+    TryClick(bcs,By.ID, "next")
+    TryClick(bcs,By.LINK_TEXT, "Posteingang")
+    fname = TryDownload(bcs,By.CSS_SELECTOR, ".sc-dkrFOg:nth-child(1) .sc-gwGGKT:nth-child(1)")
+    return fname
+
 def bc_retrieve__kabeldeutschland(bcs):
     TryClick(bcs,By.ID, "dip-consent-summary-accept-all")
     TryClick(bcs,By.CSS_SELECTOR, ".fm-field-container > #txtUsername")
