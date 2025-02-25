@@ -139,7 +139,7 @@ def WebRetriDoc(self):
     else: print(status)
 
     # Sync database
-    ret = post_json(f"{self.api}/sync", self.creds)
+    ret = post_json(f"{self.api}/sync", None)
     if not ret: sys.exit(1) 
     if not is_json_property_value(ret, "success", True): sys.exit(1)
     else: print("Vault is sync'd successfully.")
