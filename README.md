@@ -9,6 +9,9 @@ Collects my bills from different web portals.
   - Duckdns account & config -> redirect to local-IP-address
   - nginxproxymanager with Let's Encrypt (docker image: jc21 nginx-proxy-manager:latest)
 
+
+![testimage](/doc/BillCollector.png)
+
 ## Notes
 ### get_credentials.sh - prototyping
 
