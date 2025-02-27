@@ -1,213 +1,71 @@
 # BillCollector
 
-Collects my bills from different web portals.
+Let BillCollector collect your bills from different personalized web portals.
 
-## Prerequisites
+Invoices and documents that are regularly stored by service providers in the respective online account are automatically retrieved by BillCollector and stored locally in a download folder. The workflow really makes sense when the files are consumed in the download folder of Paperless ngx or a similar document management system (DMS).
+
+BillCollector uses
+
+- Vaultwarden as a vault for the access data for the online accounts
+- Selenium (for Python) to automate the browser control
+- Chrome for testing and Chromedriver as the browser front end of the service provider's online portal
+
+Chrome is operated headless, so that BillCollector can do its job on a Raspberry PI or a NAS headless integrated into the cron-scheduler on a regular basis, e.g. retrieving the newest document twice a month.
+
+Following diagram summarizes the complete BillCollector Ecosystem
+
+![BillCollector Ecosystem](/doc/BillCollector.svg)
+
+## Overview of the Prerequisites
+
+Following services are needed to be in place for BillCollector:
+
+- Docker environment
 - Vaultwarden (docker image: vaultwarden/server:latest)
-- Bitwarden API (https://api.github.com/repos/bitwarden/clients/releases, https://github.com/bitwarden/clients/releases/download/cli-v{$VER}/bw-linux-{$VER}.zip)
-- Vaultwarden needs local https access:
-  - Duckdns account & config -> redirect to local-IP-address
+- ... with Bitwarden API (<https://bitwarden.com/help/vault-management-api/>) in one docker stack
+- Secure https access is mandatory for account management and usage of Vaultwarden. Therefore, addtionally needed:
   - nginxproxymanager with Let's Encrypt (docker image: jc21 nginx-proxy-manager:latest)
+  - Duckdns account & config -> redirect to local IP address
 
+## Installation
 
-![testimage](/doc/BillCollector.png)
+### Docker Environment
 
-## Notes
-### get_credentials.sh - prototyping
+It is assumed that you have a docker environment up and running. There are different options you can choose from: Docker Desktop on a Linux or Windows machine or for your Mac, docker on the command line of your NAS or your Raspberry Pi. Plenty ressources on the internet will support you getting that done. A natural good starting point is the [Docker Getting Started](https://docs.docker.com/get-started/).
 
-#!/bin/bash
+I have it running on on my self-built Mini-ITX Intel Pentium J5040 NAS hardware equipped with the Debian Linux based NAS operating system  [openmediavault](https://www.openmediavault.org/) (OMV) and the [omv-extras](https://wiki.omv-extras.org/doku.php?id=omv7:docker_in_omv) installed.
 
-#curl --json '{"password": "+49307874573"}' http://solg.fritz.box:8087/unlock
-curl -X POST -H 'Content-Type: application/json' -d '{"password": "+49307874573"}' http://solg.fritz.box:8087/unlock
+### Vault of Secrets
 
-#curl --json '{"password": "+49307874573"}' http://solg.fritz.box:8087/sync
-curl -X POST -H 'Content-Type: application/json' -d '{"password": "+49307874573"}' http://solg.fritz.box:8087/sync
+BillCollector uses the selfhosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden) password manager.
 
-curl -s http://solg.fritz.box:8087/object/item/KabelDeutschland | jq '.data.login'
+Why Vaultwarden? The simple reason is that it is a resource-light-weight alternative to Bitwarden and compatible with the Bitwarden Vault Mangement API integrated in the [Bitwarden CLI](https://github.com/tangowithfoxtrot/bw-docker) allowing to retrieve secret login data programmatically.
 
-## Architecture & Concept - Prototype
-Architecture & Concept
-===
+On [Vaultwarden Docker](http://solg.fritz.box:3030/stefan/Vaultwarden.git) you'll get the Vaultwarden and the Bitwarden CLI as a `Dockerfile` and a `docker-compose.yml`. Follow the installation guide over there.
 
-https://www.duckdns.org/update?domains={YOURVALUE}&token={YOURVALUE}[&ip={YOURVALUE}][&ipv6={YOURVALUE}][&verbose=true][&clear=true]
+### Enabling DNS and HTTPS with Let's Encrypt certs
 
+Vaultwarden only allows secure HTTPS access by default. Suppose you want to run an instance of Vaultwarden that can only be accessed from your local network by name instead of IP adress and you want your instance to be HTTPS-enabled with certs signed by a widely accepted Certificate Authority (CA) instead of managing your own private CA.
 
+Currently the simplest option is offered by [Duck DNS](https://www.duckdns.org) as a free Domain Name Service (DNS) in combination with the locally dockerized [Nginx Proxy Manager](https://nginxproxymanager.com/) (NPM) enabling address forwarding to your Vaultwarden instance including free SSL using the [Let's Encrypt](https://letsencrypt.org/) CA.
 
-Flow
-- Summary
-    - check DNS
-    - status:   no password needed
-    - sync:     password needed
-    - unlock    password needed
-    - retrieve  no password needed
-    - lock      password needed
+The cool things about DuckDNS is not only that it is free of charge, but that it also allows wildcard domains and local IP address names. For the latter, however, DNS rebind protection must also be set up in your router.
 
+The only downside of Duck DNS is, that you cannot freely choose your domainname because it will follow the name scheme [https://\<your subdomain\>.duckdns.org](duckdns.org).
 
-- check DNS:  nslookup vault.solg.duckdns.org 
-  (5-minutes-renewal scheduliert in OMV: echo url="https://www.duckdns.org/update?domains=solg&token=11eb08e3-8778-43d5-b635-61126a23ef1a&ip=" | curl -k -o ~/duckdns/duck.log -K -)
-  OK:
-    Server:         10.255.255.254
-    Address:        10.255.255.254#53
+Steps to follow:
 
-    Non-authoritative answer:
-    Name:   vault.solg.duckdns.org
-    Address: 192.168.1.99
-- Status: Check curl http://solg.fritz.box:8087/status
-  process json - see example response:
+1. If you don't already have an account, create one at <https://www.duckdns.org/>. Define a subdomain name either used as a wildcard domain or just a single domain name for your Vaultwarden instance (e.g., my-vw.duckdns.org) and set its IP to your vaultwarden host's private IP (e.g., 192.168.1.100). Make note of your account's token (a string in UUID format). NPM will need this token to solve the DNS challenge.
 
-  {
-    "data": {
-        "object": "template",
-        "template": {
-            "lastSync": "2025-01-26T23:12:19.771Z",
-            "serverUrl": "https://vault.solg.duckdns.org",
-            "status": "locked",
-            "userEmail": "s-c-h-m-i-t-t@web.de",
-            "userId": "4f757a23-114f-479b-a40d-51eea8671c0c"
-        }
-    },
-    "success": true
-}
+    ![MyDuckDNS](/doc/Screenshot%202025-02-27%20234458.jpg)
 
-  Expect
-  - json response       -> else: Check BW API and web service running (http-response code)
-  - "success": true     -> else: Check BW API connection to serverURL
-  - "status": "locked"  -> else: unlock not needed
-  
-- Loop for every WebService
-  - sync: curl --json '{"password": "+49307874573"}' http://solg.fritz.box:8087/sync
-    FAIL:
-    {
-        "message": "Syncing failed: FetchError: request to https://vault.solg.duckdns.org/identity/connect/token failed, reason: getaddrinfo ENOTFOUND vault.solg.duckdns.org",
-        "success": false
-    }
-    OK:
-    {
-        "data": {
-            "message": null,
-            "noColor": false,
-            "object": "message",
-            "title": "Syncing complete."
-        },
-        "success": true
-    }
-        Expect
-        - "success": true   -> else: print message
+2. Configure the DNS Rebind Protection in your router: For a Fritz!Box routers go to `/Heimnetz/Netzwerk/Netzwerkeinstellungen/DNS-Rebind-Schutz` and enter the hostname you configured in Duck DNS [\<your subdomain\>.duckdns.org](duckdns.org).
 
-  - unlock: curl --json '{"password": "+49307874573"}' http://solg.fritz.box:8087/unlock
-    OK:
-    {
-        "data": {
-            "message": "\nTo unlock your vault, set your session key to the `BW_SESSION` environment variable. ex:\n$ export BW_SESSION=\"uE3lxS8J9nI/oKvN5cpjwyhktxqabtDbtQa71F5yFZGtatC5/2bFTLglCImOlXsAL/qAn9OqGrsoF9Wb5N07cQ==\"\n> $env:BW_SESSION=\"uE3lxS8J9nI/oKvN5cpjwyhktxqabtDbtQa71F5yFZGtatC5/2bFTLglCImOlXsAL/qAn9OqGrsoF9Wb5N07cQ==\"\n\nYou can also pass the session key to any command with the `--session` option. ex:\n$ bw list items --session uE3lxS8J9nI/oKvN5cpjwyhktxqabtDbtQa71F5yFZGtatC5/2bFTLglCImOlXsAL/qAn9OqGrsoF9Wb5N07cQ==",
-            "noColor": false,
-            "object": "message",
-            "raw": "uE3lxS8J9nI/oKvN5cpjwyhktxqabtDbtQa71F5yFZGtatC5/2bFTLglCImOlXsAL/qAn9OqGrsoF9Wb5N07cQ==",
-            "title": "Your vault is now unlocked!"
-        },
-        "success": true
-    }
-        Expect
-        - "success": true   -> else: error message
+3. Check the setup of your domainname was successful.
+On your Windows machine `<WIN>R cmd` and enter `nslookup <your subdomain\>.duckdns.org`. The response should look similar as follows:
 
-  - retrieve complete: curl -s http://solg.fritz.box:8087/object/item/KabelDeutschland 
-    {
-        "data": {
-            "collectionIds": [
-            ],
-            "creationDate": "2025-01-25T20:34:03.724Z",
-            "deletedDate": null,
-            "favorite": false,
-            "fields": [
-                {
-                    "linkedId": null,
-                    "name": "Auto",
-                    "type": 0,
-                    "value": "1"
-                }
-            ],
-            "folderId": null,
-            "id": "7f5fcb78-4635-498d-bf93-3d5989e68559",
-            "login": {
-                "fido2Credentials": [
-                ],
-                "password": "xcvcv",
-                "passwordRevisionDate": "2025-01-26T23:06:34.629Z",
-                "totp": null,
-                "uris": [
-                    {
-                        "match": null,
-                        "uri": "https://www.vodafone.de/meinvodafone/account/login"
-                    }
-                ],
-                "username": "sdfsdfs"
-            },
-            "name": "KabelDeutschland",
-            "notes": null,
-            "object": "item",
-            "organizationId": null,
-            "passwordHistory": [
-                {
-                    "lastUsedDate": "2025-01-26T23:06:34.629Z",
-                    "password": "def"
-                }
-            ],
-            "reprompt": 0,
-            "revisionDate": "2025-01-27T20:41:22.398Z",
-            "type": 1
-        },
-        "success": true
-    }
-  - retrieve filtered: curl -s http://solg.fritz.box:8087/object/item/KabelDeutschland | jq '.data.login'
-    {
-        "fido2Credentials": [],
-        "uris": [
-            {
-            "match": null,
-            "uri": "https://www.vodafone.de/meinvodafone/account/login"
-            }
-        ],
-        "username": "dsfsdf",
-        "password": "dsfsdf",
-        "totp": null,
-        "passwordRevisionDate": "2025-01-26T23:06:34.629Z"
-    }
+    ![nslookup](/doc/Screenshot%202025-02-28%20002726.jpg)
 
-  - lock: curl --json '{"password": "+49307874573"}' http://solg.fritz.box:8087/lock
-    OK:
-    {
-        "data": {
-            "message": null,
-            "noColor": false,
-            "object": "message",
-            "title": "Your vault is locked."
-        },
-        "success": true
-    }
-    
-## Normal Chrome output from WSL2
-chrome-linux64$ ./chrome
-[221:240:0209/173729.606808:ERROR:bus.cc(407)] Failed to connect to the bus: Failed to connect to socket /var/run/dbus/system_bus_socket: No such file or directory
-[221:244:0209/173729.925155:ERROR:bus.cc(407)] Failed to connect to the bus: Failed to connect to socket /var/run/dbus/system_bus_socket: No such file or directory
-[221:244:0209/173729.925634:ERROR:bus.cc(407)] Failed to connect to the bus: Failed to connect to socket /var/run/dbus/system_bus_socket: No such file or directory
-[221:240:0209/173729.950902:ERROR:bus.cc(407)] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[221:240:0209/173729.951133:ERROR:bus.cc(407)] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[221:240:0209/173729.951205:ERROR:bus.cc(407)] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[221:240:0209/173729.951254:ERROR:bus.cc(407)] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[221:240:0209/173729.951710:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:
-[221:240:0209/173730.051235:ERROR:bus.cc(407)] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[221:240:0209/173730.090198:ERROR:bus.cc(407)] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[221:240:0209/173730.090250:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:
-[252:252:0209/173730.121731:ERROR:viz_main_impl.cc(185)] Exiting GPU process due to errors during initialization
-[221:240:0209/173730.164442:ERROR:bus.cc(407)] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[221:240:0209/173730.164487:ERROR:bus.cc(407)] Failed to connect to the bus: Could not parse server address: Unknown address type (examples of valid types are "tcp" and on UNIX "unix")
-[221:221:0209/173730.244940:ERROR:object_proxy.cc(576)] Failed to call method: org.freedesktop.DBus.NameHasOwner: object_path= /org/freedesktop/DBus: unknown error type:
-[221:350:0209/173730.265130:ERROR:bus.cc(407)] Failed to connect to the bus: Failed to connect to socket /var/run/dbus/system_bus_socket: No such file or directory
-[221:350:0209/173730.265236:ERROR:bus.cc(407)] Failed to connect to the bus: Failed to connect to socket /var/run/dbus/system_bus_socket: No such file or directory
-[221:350:0209/173730.265322:ERROR:bus.cc(407)] Failed to connect to the bus: Failed to connect to socket /var/run/dbus/system_bus_socket: No such file or directory
-[221:350:0209/173730.265385:ERROR:bus.cc(407)] Failed to connect to the bus: Failed to connect to socket /var/run/dbus/system_bus_socket: No such file or directory
-[221:350:0209/173730.265452:ERROR:bus.cc(407)] Failed to connect to the bus: Failed to connect to socket /var/run/dbus/system_bus_socket: No such file or directory
-[341:341:0209/173730.427188:ERROR:viz_main_impl.cc(185)] Exiting GPU process due to errors during initialization
-[308:7:0209/173730.499359:ERROR:command_buffer_proxy_impl.cc(131)] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.
-[221:221:0209/173733.550034:ERROR:fm_registration_token_uploader.cc(187)] Client is missing for kUser scope
-[221:221:0209/173733.550090:ERROR:fm_registration_token_uploader.cc(187)] Client is missing for kUser scope
-[221:241:0209/173733.653507:ERROR:registration_request.cc(291)] Registration response error message: DEPRECATED_ENDPOINT
+    Alternatively on your Linux machine use a tool like `dig` to check Duck DNS is resolving your domainname.
+
+4. Now we are ready to install and configure the Nginx Proxy Manager.....
