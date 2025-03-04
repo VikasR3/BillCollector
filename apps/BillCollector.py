@@ -119,7 +119,7 @@ def get_json_property_value(content, prop):
     return result
 
 class defs:
-    def __init__(self, vault, api, creds, fname="bc_default.ini", debug=False):
+    def __init__(self, vault, api, creds, fname="bc_test.ini", debug=False):
         self.vault = vault
         self.api = api
         self.creds = creds
@@ -196,6 +196,8 @@ if __name__ == "__main__":
 
     if sys.gettrace():
         print("Executed in debugger.")
+        bc.debug = True
+        print("Debugging enabled.")
     else:
         # Von der Konsole ausgeführt
         if len(sys.argv) < 2 or len(sys.argv) > 3:

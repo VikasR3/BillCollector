@@ -14,7 +14,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 # Try to click element which needs time to be ready
-def TryClick(bcs, Locator, Element: str, Timeout: int = 60):
+def TryClick(bcs, Locator, Element: str, Timeout: int = 60, Grace = False):
     while Timeout > 0:
         try:
              bcs.drv.find_element(Locator, Element).click()
@@ -22,11 +22,29 @@ def TryClick(bcs, Locator, Element: str, Timeout: int = 60):
             time.sleep(1)
             Timeout -= 1
         else:
-            return
-    raise RuntimeError(f"Element loading timeout") 
+            if bcs.dbg == True: SaveWebPage(bcs.drv)
+            return True
+    if bcs.dbg == True: SaveWebPage(bcs.drv)
+    if Grace == False: raise RuntimeError(f"Element loading timeout") 
+    else: return False
+
+# Try to click shadow element which needs time to be ready
+def TryClickShadow(bcs, Locator, ElementA: str, ElementB: str, ElementC: str, Timeout: int = 5):
+    try:
+        shadow_host = WebDriverWait(bcs.drv, Timeout).until(EC.presence_of_element_located((Locator, ElementA)))
+        shadow_root = bcs.drv.execute_script('return arguments[0].shadowRoot', shadow_host)
+        WebDriverWait(shadow_root, Timeout).until(EC.presence_of_element_located((Locator, ElementB)))
+        cookie_button = shadow_root.find_element(Locator, ElementC)
+        bcs.drv.execute_script("arguments[0].click();", cookie_button)
+    except: 
+        if bcs.dbg == True: SaveWebPage(bcs.drv)
+        raise RuntimeError(f"Shadow Element loading failed")
+    else:
+        if bcs.dbg == True: SaveWebPage(bcs.drv)
+        return True
 
 # Try to send keys to element which needs time to be ready
-def TrySendKeys(bcs, Locator, Element: str, Key, Timeout: int = 60):
+def TrySendKeys(bcs, Locator, Element: str, Key, Timeout: int = 60, Grace = False):
     while Timeout > 0:
         try:
              bcs.drv.find_element(Locator, Element).send_keys(Key)
@@ -34,9 +52,14 @@ def TrySendKeys(bcs, Locator, Element: str, Key, Timeout: int = 60):
             time.sleep(1)
             Timeout -= 1
         else:
-            return
-    raise RuntimeError(f"Sending Key to Element timeout")
+            if bcs.dbg == True: SaveWebPage(bcs.drv)
+            return True
+    if bcs.dbg == True: SaveWebPage(bcs.drv)
+    if Grace == False: raise RuntimeError(f"Sending Key to Element timeout")
+    else: return False
 
+# Try to download file from element which needs time to be ready
+# Checks download folder for new downloaded file and returns the name of the downloaded file
 def TryDownload(bcs, Locator, Element: str, Timeout: int = 60):
     prev_file = latest_download_file(bcs.dld)
     TryClick(bcs,Locator, Element, Timeout)
@@ -57,6 +80,8 @@ def is_download_finished(download_dir, previous_file):
     else:
         return None
 
+# Initialize browser and return driver object
+# parameterize browser: in debug mode = headless, default download folder, force download by always open pdf externally, ...
 def InitBrowser(bcs):
     # browser and webdriver configuration
     homedir = os.path.dirname(os.path.realpath(__file__))
@@ -73,12 +98,14 @@ def InitBrowser(bcs):
     driver = webdriver.Chrome(service=webdriver_service, options=chrome_options)
     return driver
 
+# Save web page source for debugging
 def SaveWebPage(driver):
     page_source = driver.page_source
     with open('page_source.html', 'w', encoding='utf-8') as f:
         f.write(page_source)
     print("Saved HTML source for debugging.")
 
+# Service variables
 class service_vars:
     def __init__(self, usr, pwd, otp, dbg, dld, drv=None):
         self.drv = drv
@@ -88,6 +115,7 @@ class service_vars:
         self.dbg = dbg
         self.dld = dld
 
+# Retrieve file from service
 def RetrieveFromService(service, url, user, pwd, otp, test):
     
     bcs = service_vars(user, pwd, otp, test, f"{os.path.dirname(os.path.realpath(__file__))}/Downloads")
@@ -95,18 +123,17 @@ def RetrieveFromService(service, url, user, pwd, otp, test):
         os.makedirs(bcs.dld)
     bcs.drv = InitBrowser(bcs)
     bcs.drv.get(url)
-    
-    #if test == True: SaveWebPage(drv)
+    if bcs.dbg == True: SaveWebPage(bcs.drv)
 
     fname = "bc_retrieve__" + service.lower().replace(" ", "_")
     try:
         retrieve = globals()[fname]
         file_downloaded = retrieve(bcs)
-        if file_downloaded != None: print(f"Service {service} finished with file {file_downloaded} downloaded.")
-        else: print(f"Service {service} finished without a file downloaded.")
+        if file_downloaded != None: print(f"Service {service} finished with file {file_downloaded} for {bcs.usr} downloaded.")
+        else: print(f"Service {service} for {bcs.usr} finished without a file downloaded.")
         ret = True
     except:
-        print(f"Service {service} not successfully finished.")
+        print(f"Service {service} for {bcs.usr} not successfully finished.")
         ret = False
     else:
         bcs.drv.quit()
@@ -116,7 +143,7 @@ def RetrieveFromService(service, url, user, pwd, otp, test):
 # Services
 #
 def bc_retrieve__nuernberger(bcs):
-    #bcs.drv.find_element(By.ID, "consent_prompt_submit").click()
+    TryClick(bcs, By.ID, "consent_prompt_submit", 5, True)
     TrySendKeys(bcs,By.ID, "form_initialLogin_step2:j_idt156:username",bcs.usr)
     TrySendKeys(bcs,By.ID, "form_initialLogin_step2:j_idt171:pwd",bcs.pwd)
     TryClick(bcs,By.ID, "form_initialLogin_step2:loginSubmit")
@@ -128,17 +155,13 @@ def bc_retrieve__nuernberger(bcs):
     return fname
 
 def bc_retrieve__lichtblick(bcs):
-    shadow_host = WebDriverWait(bcs.drv, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#usercentrics-cmp-ui")))
-    shadow_root = bcs.drv.execute_script('return arguments[0].shadowRoot', shadow_host)
-    WebDriverWait(shadow_root, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#uc-main-dialog")))
-    cookie_button = shadow_root.find_element(By.CSS_SELECTOR, "#accept")
-    bcs.drv.execute_script("arguments[0].click();", cookie_button)
+    TryClickShadow(bcs, By.CSS_SELECTOR, "#usercentrics-cmp-ui", "#uc-main-dialog", "#accept")
     TryClick(bcs,By.XPATH, "//a[@href='/konto/']")
     TrySendKeys(bcs,By.ID, "email", bcs.usr)
     TrySendKeys(bcs,By.ID, "password", bcs.pwd)
     TryClick(bcs,By.ID, "next")
     TryClick(bcs,By.LINK_TEXT, "Posteingang")
-    fname = TryDownload(bcs,By.CSS_SELECTOR, ".sc-dkrFOg:nth-child(1) .sc-gwGGKT:nth-child(1)")
+    fname = TryDownload(bcs,By.XPATH, "//button[span[text()='Download']]")
     return fname
 
 def bc_retrieve__kabeldeutschland(bcs):
@@ -151,11 +174,7 @@ def bc_retrieve__kabeldeutschland(bcs):
     return fname
 
 def bc_retrieve__buhl(bcs):
-    shadow_host = WebDriverWait(bcs.drv, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#usercentrics-root")))
-    shadow_root = bcs.drv.execute_script('return arguments[0].shadowRoot', shadow_host)
-    WebDriverWait(shadow_root, 5).until(EC.presence_of_element_located((By.CSS_SELECTOR, "#uc-center-container")))
-    cookie_button = shadow_root.find_element(By.CSS_SELECTOR, "button[data-testid='uc-accept-all-button']")
-    bcs.drv.execute_script("arguments[0].click();", cookie_button)
+    TryClickShadow(bcs, By.CSS_SELECTOR, "#usercentrics-root", "#uc-center-container", "button[data-testid='uc-accept-all-button']")
     TrySendKeys(bcs, By.ID, "eml-user-login", bcs.usr)
     TrySendKeys(bcs, By.ID, "psw-user-login", bcs.pwd)
     TryClick(bcs,By.ID, "form-login-submit")
@@ -182,13 +201,10 @@ def bc_retrieve__winsim(bcs):
     TrySendKeys(bcs, By.ID, "UserLoginType_alias", bcs.usr)
     TrySendKeys(bcs, By.ID, "UserLoginType_password", bcs.pwd)
     TryClick(bcs, By.CSS_SELECTOR, ".p-site-login-form-wrapper .c-button")
-    #bcs.drv.find_element(By.ID, "c-overlay").click()
-    #TryCssClick(bcs.drv,"[data-dismiss=\"modal\"]")
-    time.sleep(3)
+    TryClick(bcs, By.ID, "c-overlay", 5, True)
+    TryClick(bcs, By.CSS_SELECTOR,"[data-dismiss=\"modal\"]", 5, True)
     TryClick(bcs, By.ID, "consent_wall_optin")
-    time.sleep(3)
-    TryClick(bcs, By.CSS_SELECTOR, ".cute-6-phone:nth-child(5) .c-link")
+    TryClick(bcs, By.XPATH, "(//a[contains(@href, '/mytariff/invoice/showAll')])[2]")
     TryClick(bcs, By.CSS_SELECTOR, "div:nth-child(1) > .c-panel-v1 > .c-panel-v1-headline")
-    time.sleep(3)
     fname=TryDownload(bcs, By.LINK_TEXT, "Rechnung")
     return fname
