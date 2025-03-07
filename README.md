@@ -51,7 +51,7 @@ BillCollector uses the selfhosted [Vaultwarden](https://github.com/dani-garcia/v
 
 Why Vaultwarden? The simple reason is that it is a resource-light-weight alternative to Bitwarden and compatible with the Bitwarden Vault Mangement API integrated in the [Bitwarden CLI](https://github.com/tangowithfoxtrot/bw-docker) allowing to retrieve secret login data programmatically.
 
-On [Vaultwarden Docker](http://solg.fritz.box:3030/stefan/Vaultwarden.git) you'll get the Vaultwarden and the Bitwarden CLI as a `Dockerfile` and a `docker-compose.yml`. Follow the installation guide over there.
+On [Vaultwarden Docker](\<URL\>/Vaultwarden.git) you'll get the Vaultwarden and the Bitwarden CLI as a `Dockerfile` and a `docker-compose.yml`. Follow the installation guide over there.
 
 ### Enabling DNS and HTTPS with Let's Encrypt certs
 
@@ -99,13 +99,13 @@ On your Windows machine `<WIN>R cmd` and enter `nslookup <your subdomain\>.duckd
       - In the form of tab `SSL` enter the SSL certificate name(s) configured in step b. and enable the switches `Force SSL` and `HTTP/2 Support`.
       - Pres `Save`
 
-   d. Test the accessiblity of your Vaultwarden Web UI in your browser by entering [https://vault.my-domain.duckdns.org](https://vault.solg.duckdns.org) or [https://my-vw.duckdns.org](https://my-vw.duckdns.org) dependent on your configuration. You should be presented the page for creating a new Vaultwarden account on a successful NPM installation and configuration now.
+   d. Test the accessiblity of your Vaultwarden Web UI in your browser by entering [https://vault.my-domain.duckdns.org](https://vault.my-domain.duckdns.org) or [https://my-vw.duckdns.org](https://my-vw.duckdns.org) dependent on your configuration. You should be presented the page for creating a new Vaultwarden account on a successful NPM installation and configuration now.
 
 ### Time for the BillCollector Installation
 
 Now, that you have done a good job installing the prerequisites, we are focussing on installing the BillCollector docker which is simple as follows:
 
-1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g. `git clone http://solg.fritz.box:3030/stefan/BillCollector.git`
+1. Download this git repository to a folder in your local docker environment assuming a Linux bash terminal, e.g. `git clone \<URL\>/stefan/BillCollector.git`
 
 2. [Configure BillCollector](#configure-billcollector) needs to be done. After each change in configuration proceed again with step 3.
 

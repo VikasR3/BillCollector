@@ -119,12 +119,12 @@ def get_json_property_value(content, prop):
     return result
 
 class defs:
-    def __init__(self, vault, api, creds, fname="bc_test.ini", debug=False):
+    def __init__(self, vault, api, fname="bc_test.ini", debug=False):
         self.vault = vault
         self.api = api
-        self.creds = creds
         self.fname = fname
         self.debug = debug
+
 
 def WebRetriDoc(self):
 
@@ -135,7 +135,7 @@ def WebRetriDoc(self):
 
     # Check if Bitarden API at <bw_api_url> responds with success=true
     ret, status = bitwarden_api_check_status(self.api)
-    if not ret: sys.exit(1) 
+    if not ret or not status == "unlocked": sys.exit(1) 
     else: print(status)
 
     # Sync database
@@ -143,12 +143,6 @@ def WebRetriDoc(self):
     if not ret: sys.exit(1) 
     if not is_json_property_value(ret, "success", True): sys.exit(1)
     else: print("Vault is sync'd successfully.")
-
-    # Unlock database
-    ret = post_json(f"{self.api}/unlock", self.creds)
-    if not ret: sys.exit(1) 
-    if not is_json_property_value(ret, "success", True): sys.exit(1)
-    else: print("Vault is unlocked successfully.")
 
     #################
     # Loop over Web Services
@@ -179,20 +173,13 @@ def WebRetriDoc(self):
     #
     #################
 
-    # Lock database
-    ret = post_json(f"{self.api}/lock", self.creds)
-    if not ret: sys.exit(1) 
-    if not is_json_property_value(ret, "success", True): sys.exit(1)
-    else: print("Vault is locked successfully.")
-
 if __name__ == "__main__":
     sys.stdout = sys.__stdout__
 
     load_dotenv()
     bc = defs(
         os.getenv("VAULT_HOST"), 
-        os.getenv("BW_API_URL"), 
-        json.loads(os.getenv("CREDENTIALS")))
+        os.getenv("BW_API_URL")) #, 
 
     if sys.gettrace():
         print("Executed in debugger.")
@@ -216,13 +203,10 @@ if __name__ == "__main__":
     logfile = "./BillCollector.log"
     log_setup(logfile)
     if bc.debug == False: 
-        print = logging.debug   # comment out if looging into file is required instead of stdout
-    
-
+        print = logging.debug   # looging into file or stdout
+   
     WebRetriDoc(bc)
 
 else:
     # Als Modul importiert
     print(f"{__name__} imported as module.")
-
-
