@@ -32,8 +32,6 @@ Following services are needed to be in place for BillCollector:
 - Vaultwarden (docker image: vaultwarden/server:latest)
 - ... with Bitwarden API (<https://bitwarden.com/help/vault-management-api/>) in one docker stack
 - Secure https access is mandatory for account management and usage of Vaultwarden. Therefore, addtionally needed:
-- ... with Bitwarden API (<https://bitwarden.com/help/vault-management-api/>) in one docker stack
-- Secure https access is mandatory for account management and usage of Vaultwarden. Therefore, addtionally needed:
   - nginxproxymanager with Let's Encrypt (docker image: jc21 nginx-proxy-manager:latest)
   - Duckdns account & config -> redirect to local IP address
 
